@@ -198,7 +198,8 @@ class PlyTextureEncoder:
         add_group("color", ["f_dc_0", "f_dc_1", "f_dc_2"])
         add_group("scale", ["scale_0", "scale_1", "scale_2"])
         if all(name in remaining for name in ["rot_0", "rot_1", "rot_2", "rot_3"]):
-            add_group("rotation", ["rot_0", "rot_1", "rot_2", "rot_3"])
+            add_group("rotation", ["rot_0", "rot_1", "rot_2"])
+            add_group("rotation_w", ["rot_3"])
         else:
             add_group("rotation", ["rot_0", "rot_1", "rot_2"])
         add_group("opacity", ["opacity"])

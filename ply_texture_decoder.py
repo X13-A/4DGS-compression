@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import cv2
 import numpy as np
 from plyfile import PlyData, PlyElement
+
+TextureLoader = Callable[[str, str], np.ndarray]
 
 
 class PlyTextureDecoder:
@@ -16,68 +18,22 @@ class PlyTextureDecoder:
         metadata = _load_metadata(metadata_path)
         textures_dir = Path(textures_dir)
 
-        element_name = metadata["element_name"]
-        entry_count = int(metadata["entry_count"])
-        texture_size = metadata["texture_size"]
-        width = int(texture_size["width"])
-        height = int(texture_size["height"])
-        property_order = list(metadata["property_order"])
-        property_types = dict(metadata["property_types"])
+        def loader(group_name: str, file_name: str) -> np.ndarray:
+            return _read_texture(textures_dir / file_name)
 
-        # Rehydrate each group texture back into per-property arrays.
-        values: dict[str, np.ndarray] = {}
-        xyz_groups = _find_split_xyz_groups(metadata["groups"])
-        if xyz_groups is not None:
-            values.update(
-                _decode_split_xyz(
-                    xyz_groups["xyz_0"],
-                    xyz_groups["xyz_1"],
-                    textures_dir,
-                    width,
-                    height,
-                    entry_count,
-                )
-            )
+        return _decode_with_loader(metadata, loader)
 
-        for group in metadata["groups"]:
-            group_name = group["name"]
-            if xyz_groups is not None and group_name in ("xyz_0", "xyz_1"):
-                continue
-            properties = list(group["properties"])
-            file_name = group["file"]
-            min_values = list(group["min"])
-            max_values = list(group["max"])
-            bit_depth = int(group.get("bit_depth", 8))
+    def decode_from_textures(
+        self,
+        metadata: dict[str, Any],
+        textures_by_group: dict[str, np.ndarray],
+    ) -> PlyData:
+        def loader(group_name: str, file_name: str) -> np.ndarray:
+            if group_name not in textures_by_group:
+                raise ValueError(f"Missing texture for group '{group_name}'")
+            return textures_by_group[group_name]
 
-            texture_path = textures_dir / file_name
-            texture = _read_texture(texture_path)
-            if texture.shape[0] != height or texture.shape[1] != width:
-                raise ValueError(
-                    f"Texture {texture_path} has unexpected dimensions {texture.shape}"
-                )
-            data = _denormalize_texture(texture, min_values, max_values, bit_depth)
-            flat = _flatten_texture(data)[:entry_count]
-
-            if flat.shape[1] != len(properties):
-                raise ValueError(
-                    f"Texture {group_name} has {flat.shape[1]} channels; "
-                    f"expected {len(properties)}"
-                )
-
-            for channel_index, prop_name in enumerate(properties):
-                values[prop_name] = flat[:, channel_index]
-
-        # Rebuild the structured array in the original property order.
-        dtype = [(name, np.dtype(property_types[name])) for name in property_order]
-        data = np.empty(entry_count, dtype=dtype)
-        for name in property_order:
-            if name not in values:
-                raise ValueError(f"Missing data for property '{name}'")
-            data[name] = values[name]
-
-        element = PlyElement.describe(data, element_name)
-        text, byte_order = _format_settings(metadata.get("format", "unknown"))
-        return PlyData([element], text=text, byte_order=byte_order)
+        return _decode_with_loader(metadata, loader)
 
 
 def save_ply(ply: PlyData, output_path: str | Path) -> None:
@@ -99,6 +55,70 @@ def _read_texture(path: Path) -> np.ndarray:
     return texture.astype(np.float32)
 
 
+def _decode_with_loader(metadata: dict[str, Any], texture_loader: TextureLoader) -> PlyData:
+    element_name = metadata["element_name"]
+    entry_count = int(metadata["entry_count"])
+    texture_size = metadata["texture_size"]
+    width = int(texture_size["width"])
+    height = int(texture_size["height"])
+    property_order = list(metadata["property_order"])
+    property_types = dict(metadata["property_types"])
+
+    # Rehydrate each group texture back into per-property arrays.
+    values: dict[str, np.ndarray] = {}
+    xyz_groups = _find_split_xyz_groups(metadata["groups"])
+    if xyz_groups is not None:
+        values.update(
+            _decode_split_xyz(
+                xyz_groups["xyz_0"],
+                xyz_groups["xyz_1"],
+                texture_loader,
+                width,
+                height,
+                entry_count,
+            )
+        )
+
+    for group in metadata["groups"]:
+        group_name = group["name"]
+        if xyz_groups is not None and group_name in ("xyz_0", "xyz_1"):
+            continue
+        properties = list(group["properties"])
+        file_name = group["file"]
+        min_values = list(group["min"])
+        max_values = list(group["max"])
+        bit_depth = int(group.get("bit_depth", 8))
+
+        texture = texture_loader(group_name, file_name)
+        if texture.shape[0] != height or texture.shape[1] != width:
+            raise ValueError(
+                f"Texture {group_name} has unexpected dimensions {texture.shape}"
+            )
+        data = _denormalize_texture(texture, min_values, max_values, bit_depth)
+        flat = _flatten_texture(data)[:entry_count]
+
+        if flat.shape[1] != len(properties):
+            raise ValueError(
+                f"Texture {group_name} has {flat.shape[1]} channels; "
+                f"expected {len(properties)}"
+            )
+
+        for channel_index, prop_name in enumerate(properties):
+            values[prop_name] = flat[:, channel_index]
+
+    # Rebuild the structured array in the original property order.
+    dtype = [(name, np.dtype(property_types[name])) for name in property_order]
+    data = np.empty(entry_count, dtype=dtype)
+    for name in property_order:
+        if name not in values:
+            raise ValueError(f"Missing data for property '{name}'")
+        data[name] = values[name]
+
+    element = PlyElement.describe(data, element_name)
+    text, byte_order = _format_settings(metadata.get("format", "unknown"))
+    return PlyData([element], text=text, byte_order=byte_order)
+
+
 def _find_split_xyz_groups(groups: list[dict[str, Any]]) -> dict[str, dict[str, Any]] | None:
     lookup = {group["name"]: group for group in groups}
     if "xyz_0" in lookup and "xyz_1" in lookup:
@@ -109,7 +129,7 @@ def _find_split_xyz_groups(groups: list[dict[str, Any]]) -> dict[str, dict[str, 
 def _decode_split_xyz(
     low_group: dict[str, Any],
     high_group: dict[str, Any],
-    textures_dir: Path,
+    texture_loader: "TextureLoader",
     width: int,
     height: int,
     entry_count: int,
@@ -121,8 +141,8 @@ def _decode_split_xyz(
     min_values = list(low_group["min"])
     max_values = list(low_group["max"])
 
-    low_texture = _read_texture(textures_dir / low_group["file"])
-    high_texture = _read_texture(textures_dir / high_group["file"])
+    low_texture = texture_loader("xyz_0", low_group["file"])
+    high_texture = texture_loader("xyz_1", high_group["file"])
     if low_texture.shape[0] != height or low_texture.shape[1] != width:
         raise ValueError("xyz_0 texture has unexpected dimensions")
     if high_texture.shape[0] != height or high_texture.shape[1] != width:
