@@ -83,12 +83,35 @@ class PlyTextureEncoder:
                 raise ValueError(
                     f"Group '{group_name}' has {channel_count} properties; max is 4."
                 )
-
-            bit_depth = 16 if group_name == "xyz" else 8
             writer = _TextureWriter(width, height, channel_count)
             self._write_property_group(element, props, writer, 0)
             texture = writer.finalize()
             min_values, max_values = _channel_stats(texture, entry_count)
+
+            if group_name == "xyz":
+                low_bytes, high_bytes = _split_xyz_bytes(texture, min_values, max_values)
+                groups.append(
+                    GroupTexture(
+                        name="xyz_0",
+                        properties=props,
+                        texture=low_bytes,
+                        min_values=min_values,
+                        max_values=max_values,
+                        bit_depth=8,
+                    )
+                )
+                groups.append(
+                    GroupTexture(
+                        name="xyz_1",
+                        properties=props,
+                        texture=high_bytes,
+                        min_values=min_values,
+                        max_values=max_values,
+                        bit_depth=8,
+                    )
+                )
+                continue
+
             groups.append(
                 GroupTexture(
                     name=group_name,
@@ -96,7 +119,7 @@ class PlyTextureEncoder:
                     texture=texture,
                     min_values=min_values,
                     max_values=max_values,
-                    bit_depth=bit_depth,
+                    bit_depth=8,
                 )
             )
 
@@ -220,6 +243,7 @@ def save_texture(
     max_values: list[float],
     png_compression: int = 0,
     bit_depth: int = 8,
+    normalize: bool = True,
 ) -> None:
     if texture.ndim not in (2, 3):
         raise ValueError("Texture data must be 2D or 3D array")
@@ -230,8 +254,11 @@ def save_texture(
     if bit_depth not in (8, 16):
         raise ValueError("Bit depth must be 8 or 16")
 
-    # Normalize using the stored per-channel bounds for round-trip decoding.
-    output = _normalize_texture(texture, min_values, max_values, bit_depth)
+    if normalize:
+        # Normalize using the stored per-channel bounds for round-trip decoding.
+        output = _normalize_texture(texture, min_values, max_values, bit_depth)
+    else:
+        output = texture.astype(np.uint16 if bit_depth == 16 else np.uint8)
     params = [cv2.IMWRITE_PNG_COMPRESSION, png_compression]
     if not cv2.imwrite(str(Path(path)), output, params):
         raise ValueError(f"Failed to write texture to {path}")
@@ -268,6 +295,44 @@ def _normalize_texture(
 
     if output.shape[2] == 1:
         return output[:, :, 0]
+    return output
+
+
+def _split_xyz_bytes(
+    texture: np.ndarray,
+    min_values: list[float],
+    max_values: list[float],
+) -> tuple[np.ndarray, np.ndarray]:
+    quantized = _quantize_texture(texture, min_values, max_values, 65535.0)
+    low_bytes = (quantized & 0xFF).astype(np.uint8)
+    high_bytes = (quantized >> 8).astype(np.uint8)
+    return low_bytes, high_bytes
+
+
+def _quantize_texture(
+    texture: np.ndarray,
+    min_values: list[float],
+    max_values: list[float],
+    max_code: float,
+) -> np.ndarray:
+    data = texture.astype(np.float32)
+    if data.ndim == 2:
+        data = data[:, :, None]
+    channels = data.shape[2]
+    if channels != len(min_values) or channels != len(max_values):
+        raise ValueError("Normalization bounds do not match channel count")
+    output = np.zeros_like(data, dtype=np.uint16)
+    for channel in range(channels):
+        channel_data = data[:, :, channel]
+        min_value = min_values[channel]
+        max_value = max_values[channel]
+        if max_value <= min_value:
+            output[:, :, channel] = 0
+            continue
+        scaled = (channel_data - min_value) / (max_value - min_value)
+        output[:, :, channel] = np.clip(scaled * max_code, 0, max_code).astype(
+            np.uint16
+        )
     return output
 
 
