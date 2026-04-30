@@ -1,2 +1,7 @@
 Self-Organizing-Gaussians/
 mamba/
+outputs/
+output_videos/
+reconstructed/
+data_bus/
+__pycache__/
