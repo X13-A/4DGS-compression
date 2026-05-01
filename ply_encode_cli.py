@@ -30,11 +30,6 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         default=0,
         help="PNG compression level (0-9).",
     )
-    parser.add_argument(
-        "--element",
-        default="vertex",
-        help="PLY element name to encode.",
-    )
     return parser.parse_args(argv)
 
 
@@ -42,7 +37,6 @@ def _encode_one(
     ply_path: Path,
     out_dir: Path,
     png_compression: int,
-    element_name: str,
     name_prefix: str,
 ) -> None:
     loader = PlyLoader()
@@ -58,7 +52,7 @@ def _encode_one(
     loader.summarize(ply)
 
     encoder = PlyTextureEncoder()
-    encoded = encoder.encode(ply, element_name=element_name)
+    encoded = encoder.encode(ply)
 
     file_map: dict[str, str] = {}
     for group in encoded.groups:
@@ -111,7 +105,6 @@ def main(argv: Sequence[str]) -> int:
                     ply_path,
                     out_dir,
                     args.png_compression,
-                    args.element,
                     name_prefix,
                 )
             except Exception:
@@ -125,7 +118,6 @@ def main(argv: Sequence[str]) -> int:
             ply_path,
             out_dir,
             args.png_compression,
-            args.element,
             name_prefix,
         )
     except Exception:

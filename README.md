@@ -1,12 +1,31 @@
 # 4DGS-compression
 
+Research prototype that compresses 4D Gaussian Splats by mapping per-frame PLY attributes into structured 2D textures, then applying standard image/video codecs (PNG for spatial, H.264/FFV1 for temporal). Original PLYs can then be reconstructed from the compressed textures and videos.
+
+## Results
+
+| Dataset | Original size | Spatially compressed size | Spatiotemporally compressed size | Final compression rate |
+| --- | ---: | ---: | ---: | ---: |
+| Bus | 3.69 GB | 751 MB | 363 MB | 10.16x |
+
+## Visual comparison
+
+| Reference | Spatiotemporal compression |
+| --- | --- |
+| <img src="renders/bus_reference.png" width="100%" alt="Reference"> | <img src="renders/bus_spatiotemporal.png" width="100%" alt="Spatiotemporal"> |
+
+| FLIP error (Spatial) | FLIP error (Spatiotemporal) |
+| --- | --- |
+| <img src="renders/flip.bus_reference.bus_spatial.67ppd.ldr.png" width="100%" alt="FLIP spatial"> | <img src="renders/flip.bus_reference.bus_spatiotemporal.67ppd.ldr.png" width="100%" alt="FLIP spatiotemporal"> |
+
 ## Prerequisites
-- Install the dependencies:
+- Windows OS
+- Install ffmpeg: https://www.ffmpeg.org/
+- Install dependencies:
     ```bash
     pip install plyfile numpy opencv-python
     ```
 
-- Install ffmpeg: https://www.ffmpeg.org/
 ## CLI Usage
 
 ### Spatial compression
@@ -16,11 +35,21 @@ Encode a single PLY file into PNG textures:
 python ply_encode_cli.py path/to/input.ply --out-dir path/to/output_dir --png-compression 9
 ```
 
+Parameters:
+- `path/to/input.ply` = input PLY file to encode.
+- `--out-dir` = output directory for textures and metadata.
+- `--png-compression` = PNG compression level (0-9). Higher = smaller files, slower encode.
+
 Encode all PLY files in a folder (outputs are prefixed with FRAME_i_ in one directory):
 
 ```bash
 python ply_encode_cli.py --ply-dir path/to/input_dir --out-dir path/to/output_dir --png-compression 9
 ```
+
+Parameters:
+- `--ply-dir` = directory containing input .ply files.
+- `--out-dir` = output directory for textures and metadata.
+- `--png-compression` = PNG compression level (0-9). Higher = smaller files, slower encode.
 
 Decode PNG textures back into a PLY file:
 
@@ -28,17 +57,24 @@ Decode PNG textures back into a PLY file:
 python ply_decode_cli.py --metadata path/to/metadata.json --textures-dir path/to/textures_dir --out-dir path/to/output_dir
 ```
 
+Parameters:
+- `--metadata` = metadata JSON produced by the encoder.
+- `--textures-dir` = directory containing the encoded PNG textures.
+- `--out-dir` = output directory for reconstructed PLY files.
+
 ### Spatiotemporal compression
-Build H.264 videos from the per-frame textures (one video per texture group).
+Build H.264 videos from the per-frame textures (one video per texture group). Position textures (`xyz_0`, `xyz_1`) are encoded losslessly as FFV1 in `.mkv` files.
+
 
 ```bash
 ./encode_textures_to_h264.bat path/to/textures_dir path/to/output_videos 18 30
 ```
 
 Parameters:
+- `path/to/textures_dir` = directory containing per-frame textures and metadata.
+- `path/to/output_videos` = output directory for encoded videos.
 - `18` = H.264 CRF (quality). Lower means higher quality/larger files.
 - `30` = frames per second for the output videos.
-- Position textures (`xyz_0`, `xyz_1`) are encoded losslessly as FFV1 in `.mkv` files.
 
 Decode H.264 videos back to PLYs:
 
