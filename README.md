@@ -1,5 +1,12 @@
 # 4DGS-compression
 
+## Authors
+
+**Authors:** Aline Baumberger, Alex Foulon
+**Affiliation:** École Polytechnique
+
+## Overview
+
 Research prototype that compresses 4D Gaussian Splats by mapping per-frame PLY attributes into structured 2D textures, then applying standard image/video codecs (PNG for spatial, H.264/FFV1 for temporal). Original PLYs can then be reconstructed from the compressed textures and videos.
 
 ## Results
@@ -87,11 +94,6 @@ Parameters:
 - `--metadata-dir` = folder with FRAME_i_metadata.json files from encoding.
 - `--out-dir` = where reconstructed PLYs are written.
 
-## Authors
-
-Authors: Aline Baumberger, Alex Foulon
-Affiliation: Ecole Polytechnique
-
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
@@ -103,7 +105,7 @@ Citation:
 @article{baumberger-foulon-4dgs-compression-2026,
     title={Spatio-temporal Compression of 4D Gaussian Splats},
     author={Baumberger, Aline and Foulon, Alex},
-    journal={Ecole Polytechnique},
+    journal={École Polytechnique},
     year={2026}
 }
 ```
