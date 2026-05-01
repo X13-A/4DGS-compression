@@ -1,6 +1,6 @@
 # 4DGS-compression
 
-**Authors:** Aline Baumberger, Alex Foulon
+**Authors:** Aline Baumberger, Alex Foulon <br>
 **Affiliation:** École Polytechnique
 
 ## Overview
