@@ -86,3 +86,19 @@ Parameters:
 - `--videos-dir` = folder with per-group videos (xyz_0.mp4, color.mp4, etc).
 - `--metadata-dir` = folder with FRAME_i_metadata.json files from encoding.
 - `--out-dir` = where reconstructed PLYs are written.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+## Credits
+
+Citation:
+```bibtex
+@article{baumberger-foulon-4dgs-compression-2026,
+    title={Spatio-temporal Compression of 4D Gaussian Splats},
+    author={Baumberger, Aline and Foulon, Alex},
+    journal={Ecole Polytechnique},
+    year={2026}
+}
+```
