@@ -87,6 +87,11 @@ Parameters:
 - `--metadata-dir` = folder with FRAME_i_metadata.json files from encoding.
 - `--out-dir` = where reconstructed PLYs are written.
 
+## Authors
+
+Authors: Aline Baumberger, Alex Foulon
+Affiliation: Ecole Polytechnique
+
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
