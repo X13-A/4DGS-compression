@@ -3,6 +3,7 @@
 ## Authors
 
 **Authors:** Aline Baumberger, Alex Foulon
+
 **Affiliation:** École Polytechnique
 
 ## Overview
