@@ -12,11 +12,11 @@ Research prototype that compresses 4D Gaussian Splats by mapping per-frame PLY a
 
 | Reference | Spatiotemporal compression |
 | --- | --- |
-| <img src="renders/bus_reference.png" width="100%" alt="Reference"> | <img src="renders/bus_spatiotemporal.png" width="100%" alt="Spatiotemporal"> |
+| <img src="renders/bus_reference.png" width="360" alt="Reference"> | <img src="renders/bus_spatiotemporal.png" width="360" alt="Spatiotemporal"> |
 
 | FLIP error (Spatial) | FLIP error (Spatiotemporal) |
 | --- | --- |
-| <img src="renders/flip.bus_reference.bus_spatial.67ppd.ldr.png" width="100%" alt="FLIP spatial"> | <img src="renders/flip.bus_reference.bus_spatiotemporal.67ppd.ldr.png" width="100%" alt="FLIP spatiotemporal"> |
+| <img src="renders/flip.bus_reference.bus_spatial.67ppd.ldr.png" width="360" alt="FLIP spatial"> | <img src="renders/flip.bus_reference.bus_spatiotemporal.67ppd.ldr.png" width="360" alt="FLIP spatiotemporal"> |
 
 ## Prerequisites
 - Windows OS
