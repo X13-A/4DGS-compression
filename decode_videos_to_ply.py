@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Decode H.264 texture videos back into PLYs without writing textures to disk."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import re

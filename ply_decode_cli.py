@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""CLI for decoding PNG textures back into a PLY file."""
-
-from __future__ import annotations
-
 import argparse
 import sys
 from pathlib import Path
@@ -39,7 +34,7 @@ def main(argv: Sequence[str]) -> int:
     except FileNotFoundError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"Error: failed to decode textures: {exc}", file=sys.stderr)
         return 2
 

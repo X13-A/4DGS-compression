@@ -44,7 +44,7 @@ Parameters:
 Decode H.264 videos back to PLYs (in-memory, no texture files are written):
 
 ```bash
-python decode_videos_to_ply.py --videos-dir output_videos --metadata-dir outputs/bus_video --out-dir reconstructed/bus_video
+python decode_videos_to_ply.py --videos-dir outputs/bus_encoded_videos_lossy --metadata-dir outputs/bus_encoded_textures --out-dir reconstructed/bus_spatiotemporal_lossy
 ```
 
 Parameters:

@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-"""CLI for encoding PLY files into PNG textures."""
-
-from __future__ import annotations
-
 import argparse
 import json
 import sys

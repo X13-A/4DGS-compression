@@ -46,6 +46,7 @@ foreach ($g in $groups) {
         Set-Content -LiteralPath $listPath -Encoding ascii
 
     $isPosition = $g.Name -in @('xyz_0', 'xyz_1')
+    # Lossless encoding for position data, lossy for others
     if ($isPosition) {
         $outPath = Join-Path $outputDir ("$($g.Name).mkv")
         & ffmpeg -y -r $Fps -f concat -safe 0 -i $listPath -c:v ffv1 -level 3 -g 1 -pix_fmt rgb24 $outPath

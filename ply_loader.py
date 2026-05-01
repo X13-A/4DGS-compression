@@ -1,9 +1,5 @@
 """Load and summarize PLY files."""
 
-from __future__ import annotations
-
-from typing import Sequence
-
 import numpy as np
 
 from plyfile import PlyData

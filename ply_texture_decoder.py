@@ -1,7 +1,5 @@
 """Decode PNG textures into a reconstructed PLY file."""
 
-from __future__ import annotations
-
 import json
 from pathlib import Path
 from typing import Any, Callable
@@ -64,7 +62,6 @@ def _decode_with_loader(metadata: dict[str, Any], texture_loader: TextureLoader)
     property_order = list(metadata["property_order"])
     property_types = dict(metadata["property_types"])
 
-    # Rehydrate each group texture back into per-property arrays.
     values: dict[str, np.ndarray] = {}
     xyz_groups = _find_split_xyz_groups(metadata["groups"])
     if xyz_groups is not None:
@@ -106,7 +103,6 @@ def _decode_with_loader(metadata: dict[str, Any], texture_loader: TextureLoader)
         for channel_index, prop_name in enumerate(properties):
             values[prop_name] = flat[:, channel_index]
 
-    # Rebuild the structured array in the original property order.
     dtype = [(name, np.dtype(property_types[name])) for name in property_order]
     data = np.empty(entry_count, dtype=dtype)
     for name in property_order:

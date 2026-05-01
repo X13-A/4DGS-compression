@@ -1,7 +1,5 @@
 """Encode PLY element data into per-group PNG textures."""
 
-from __future__ import annotations
-
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,7 +63,6 @@ class PlyTextureEncoder:
         if element_name not in ply:
             raise ValueError(f"Element not found: {element_name}")
 
-        # Build per-vertex textures and capture normalization ranges.
         element = ply[element_name]
         entry_count = int(element.count)
         width, height = self._select_texture_size(entry_count)
@@ -144,7 +141,6 @@ class PlyTextureEncoder:
         best_area = best_width * best_height
         best_diff = abs(best_width - best_height)
 
-        # Find the smallest near-square rectangle that fits all entries.
         width = root
         while width <= entry_count:
             height = math.ceil(entry_count / width)
@@ -214,7 +210,6 @@ class PlyTextureEncoder:
 
 class _TextureWriter:
     def __init__(self, width: int, height: int, channels: int) -> None:
-        # Float32 storage; normalization happens during PNG export.
         shape = (height, width) if channels == 1 else (height, width, channels)
         self._data = np.zeros(shape, dtype=np.float32)
         self._width = width
@@ -256,7 +251,6 @@ def save_texture(
         raise ValueError("Bit depth must be 8 or 16")
 
     if normalize:
-        # Normalize using the stored per-channel bounds for round-trip decoding.
         output = _normalize_texture(texture, min_values, max_values, bit_depth)
     else:
         output = texture.astype(np.uint16 if bit_depth == 16 else np.uint8)
@@ -375,7 +369,7 @@ def _flatten_value(value: object) -> Iterator[object]:
     if isinstance(value, (list, tuple)):
         return iter(value)
     try:
-        return iter(value)  # type: ignore[arg-type]
+        return iter(value)
     except TypeError:
         return iter((value,))
 
