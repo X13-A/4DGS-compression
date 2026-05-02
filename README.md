@@ -68,7 +68,7 @@ Parameters:
 - `--out-dir` = output directory for reconstructed PLY files.
 
 ### Spatiotemporal compression
-Build H.264 videos from the per-frame textures (one video per texture group). Position textures (`xyz_0`, `xyz_1`) are encoded losslessly as FFV1 in `.mkv` files.
+Build H.264 videos from the per-frame textures (one video per texture group). The position texture (`xyz`) is encoded losslessly as FFV1 in a `.mkv` file.
 
 
 ```bash
@@ -88,7 +88,7 @@ python decode_videos_to_ply.py --videos-dir path/to/videos_dir --metadata-dir pa
 ```
 
 Parameters:
-- `--videos-dir` = folder with per-group videos (xyz_0.mp4, color.mp4, etc).
+- `--videos-dir` = folder with per-group videos (xyz.mkv, color.mp4, etc).
 - `--metadata-dir` = folder with FRAME_i_metadata.json files from encoding.
 - `--out-dir` = where reconstructed PLYs are written.
 

@@ -2,5 +2,7 @@ Self-Organizing-Gaussians/
 mamba/
 outputs/
 reconstructed/
+outputs_backup/
+reconstructed_backup/
 data_bus/
 __pycache__/

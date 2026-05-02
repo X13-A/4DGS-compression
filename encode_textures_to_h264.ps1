@@ -45,11 +45,11 @@ foreach ($g in $groups) {
         ForEach-Object { "file '$($_.Path.Replace("'", "''"))'" } |
         Set-Content -LiteralPath $listPath -Encoding ascii
 
-    $isPosition = $g.Name -in @('xyz_0', 'xyz_1')
-    # Lossless encoding for position data, lossy for others
+    $isPosition = $g.Name -eq 'xyz'
+    # Lossless encoding for position data (16-bit), lossy for others
     if ($isPosition) {
         $outPath = Join-Path $outputDir ("$($g.Name).mkv")
-        & ffmpeg -y -r $Fps -f concat -safe 0 -i $listPath -c:v ffv1 -level 3 -g 1 -pix_fmt rgb24 $outPath
+        & ffmpeg -y -r $Fps -f concat -safe 0 -i $listPath -vf format=gbrp16le -c:v ffv1 -level 3 -g 1 -pix_fmt gbrp16le -color_range pc $outPath
     } else {
         $outPath = Join-Path $outputDir ("$($g.Name).mp4")
         & ffmpeg -y -r $Fps -f concat -safe 0 -i $listPath -c:v libx264 -pix_fmt yuv444p -crf $Crf $outPath

@@ -85,30 +85,6 @@ class PlyTextureEncoder:
             texture = writer.finalize()
             min_values, max_values = _channel_stats(texture, entry_count)
 
-            if group_name == "xyz":
-                low_bytes, high_bytes = _split_xyz_bytes(texture, min_values, max_values)
-                groups.append(
-                    GroupTexture(
-                        name="xyz_0",
-                        properties=props,
-                        texture=low_bytes,
-                        min_values=min_values,
-                        max_values=max_values,
-                        bit_depth=8,
-                    )
-                )
-                groups.append(
-                    GroupTexture(
-                        name="xyz_1",
-                        properties=props,
-                        texture=high_bytes,
-                        min_values=min_values,
-                        max_values=max_values,
-                        bit_depth=8,
-                    )
-                )
-                continue
-
             groups.append(
                 GroupTexture(
                     name=group_name,
@@ -116,7 +92,7 @@ class PlyTextureEncoder:
                     texture=texture,
                     min_values=min_values,
                     max_values=max_values,
-                    bit_depth=8,
+                    bit_depth=16 if group_name == "xyz" else 8,
                 )
             )
 
@@ -290,44 +266,6 @@ def _normalize_texture(
 
     if output.shape[2] == 1:
         return output[:, :, 0]
-    return output
-
-
-def _split_xyz_bytes(
-    texture: np.ndarray,
-    min_values: list[float],
-    max_values: list[float],
-) -> tuple[np.ndarray, np.ndarray]:
-    quantized = _quantize_texture(texture, min_values, max_values, 65535.0)
-    low_bytes = (quantized & 0xFF).astype(np.uint8)
-    high_bytes = (quantized >> 8).astype(np.uint8)
-    return low_bytes, high_bytes
-
-
-def _quantize_texture(
-    texture: np.ndarray,
-    min_values: list[float],
-    max_values: list[float],
-    max_code: float,
-) -> np.ndarray:
-    data = texture.astype(np.float32)
-    if data.ndim == 2:
-        data = data[:, :, None]
-    channels = data.shape[2]
-    if channels != len(min_values) or channels != len(max_values):
-        raise ValueError("Normalization bounds do not match channel count")
-    output = np.zeros_like(data, dtype=np.uint16)
-    for channel in range(channels):
-        channel_data = data[:, :, channel]
-        min_value = min_values[channel]
-        max_value = max_values[channel]
-        if max_value <= min_value:
-            output[:, :, channel] = 0
-            continue
-        scaled = (channel_data - min_value) / (max_value - min_value)
-        output[:, :, channel] = np.clip(scaled * max_code, 0, max_code).astype(
-            np.uint16
-        )
     return output
 
 

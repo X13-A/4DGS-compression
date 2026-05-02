@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Decode H.264 texture videos back into PLYs without writing textures to disk."""
+"""Decode per-texture videos back into PLYs without writing textures to disk."""
 
 import argparse
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--videos-dir",
         required=True,
-        help="Directory containing per-group videos (xyz_0.mp4, color.mp4, etc).",
+        help="Directory containing per-group videos (xyz.mkv, color.mp4, etc).",
     )
     parser.add_argument(
         "--metadata-dir",
@@ -55,7 +56,7 @@ def main() -> int:
     if not metadata_files:
         raise FileNotFoundError(f"No *_metadata.json files found in {metadata_dir}")
 
-    video_caps = _open_videos(videos_dir)
+    video_caps, video_paths = _open_videos(videos_dir)
     decoder = PlyTextureDecoder()
 
     for index, meta_path in enumerate(metadata_files):
@@ -64,7 +65,7 @@ def main() -> int:
             frame_index = index
 
         metadata = _load_metadata(meta_path)
-        textures = _read_frame_textures(metadata, video_caps, frame_index)
+        textures = _read_frame_textures(metadata, video_caps, video_paths, frame_index)
         ply = decoder.decode_from_textures(metadata, textures)
 
         source_stem = meta_path.stem.replace("_metadata", "")
@@ -92,37 +93,56 @@ def _frame_index_from_meta(path: Path) -> int | None:
     return int(match.group(1))
 
 
-def _open_videos(videos_dir: Path) -> dict[str, cv2.VideoCapture]:
+def _open_videos(
+    videos_dir: Path,
+) -> tuple[dict[str, cv2.VideoCapture], dict[str, Path]]:
     videos = list(videos_dir.glob("*.mp4")) + list(videos_dir.glob("*.mkv"))
     if not videos:
         raise FileNotFoundError(f"No .mp4 or .mkv files found in {videos_dir}")
 
     caps: dict[str, cv2.VideoCapture] = {}
+    paths: dict[str, Path] = {}
     for video in videos:
         group_name = video.stem
+        paths[group_name] = video
+        if group_name == "xyz":
+            continue
         cap = cv2.VideoCapture(str(video))
         if not cap.isOpened():
             raise ValueError(f"Failed to open video: {video}")
         caps[group_name] = cap
-    return caps
+    return caps, paths
 
 
 def _read_frame_textures(
     metadata: dict[str, Any],
     video_caps: dict[str, cv2.VideoCapture],
+    video_paths: dict[str, Path],
     frame_index: int,
 ) -> dict[str, np.ndarray]:
     textures: dict[str, np.ndarray] = {}
+    texture_size = metadata["texture_size"]
+    width = int(texture_size["width"])
+    height = int(texture_size["height"])
     for group in metadata["groups"]:
         group_name = group["name"]
-        if group_name not in video_caps:
+        if group_name not in video_paths:
             raise ValueError(f"Missing video for group '{group_name}'")
 
         expected_channels = len(group["properties"])
-        if expected_channels == 4:
+        if expected_channels == 4 and group_name != "xyz":
             raise ValueError(
                 f"Group '{group_name}' has 4 channels; H.264 cannot preserve 4 channels."
             )
+        if group_name == "xyz":
+            frame = _read_ffv1_rgb48le_frame(
+                video_paths[group_name],
+                width,
+                height,
+                frame_index,
+            )
+            textures[group_name] = frame.astype(np.float32)
+            continue
 
         frame = _read_frame(video_caps[group_name], frame_index, group_name)
         frame = _coerce_channels(frame, expected_channels, group_name)
@@ -139,6 +159,48 @@ def _read_frame(
     if not ok or frame is None:
         raise ValueError(f"Failed to read frame {frame_index} for group '{group_name}'")
     return frame
+
+
+def _read_ffv1_rgb48le_frame(
+    video_path: Path,
+    width: int,
+    height: int,
+    frame_index: int,
+) -> np.ndarray:
+    command = [
+        "ffmpeg",
+        "-v",
+        "error",
+        "-i",
+        str(video_path),
+        "-vf",
+        f"select=eq(n\\,{frame_index}),format=gbrp16le",
+        "-vframes",
+        "1",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "gbrp16le",
+        "-color_range",
+        "pc",
+        "-",
+    ]
+    result = subprocess.run(
+        command,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    expected_size = width * height * 3 * 2
+    if len(result.stdout) != expected_size:
+        raise ValueError(
+            "FFV1 frame size mismatch for xyz; "
+            f"expected {expected_size} bytes, got {len(result.stdout)}"
+        )
+    data = np.frombuffer(result.stdout, dtype=np.uint16)
+    planes = data.reshape((3, height, width))
+    bgr = np.stack((planes[1], planes[0], planes[2]), axis=2)
+    return bgr
 
 
 def _coerce_channels(

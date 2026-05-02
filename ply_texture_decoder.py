@@ -63,23 +63,8 @@ def _decode_with_loader(metadata: dict[str, Any], texture_loader: TextureLoader)
     property_types = dict(metadata["property_types"])
 
     values: dict[str, np.ndarray] = {}
-    xyz_groups = _find_split_xyz_groups(metadata["groups"])
-    if xyz_groups is not None:
-        values.update(
-            _decode_split_xyz(
-                xyz_groups["xyz_0"],
-                xyz_groups["xyz_1"],
-                texture_loader,
-                width,
-                height,
-                entry_count,
-            )
-        )
-
     for group in metadata["groups"]:
         group_name = group["name"]
-        if xyz_groups is not None and group_name in ("xyz_0", "xyz_1"):
-            continue
         properties = list(group["properties"])
         file_name = group["file"]
         min_values = list(group["min"])
@@ -115,52 +100,6 @@ def _decode_with_loader(metadata: dict[str, Any], texture_loader: TextureLoader)
     return PlyData([element], text=text, byte_order=byte_order)
 
 
-def _find_split_xyz_groups(groups: list[dict[str, Any]]) -> dict[str, dict[str, Any]] | None:
-    lookup = {group["name"]: group for group in groups}
-    if "xyz_0" in lookup and "xyz_1" in lookup:
-        return {"xyz_0": lookup["xyz_0"], "xyz_1": lookup["xyz_1"]}
-    return None
-
-
-def _decode_split_xyz(
-    low_group: dict[str, Any],
-    high_group: dict[str, Any],
-    texture_loader: "TextureLoader",
-    width: int,
-    height: int,
-    entry_count: int,
-) -> dict[str, np.ndarray]:
-    properties = list(low_group["properties"])
-    if list(high_group["properties"]) != properties:
-        raise ValueError("xyz_0 and xyz_1 properties do not match")
-
-    min_values = list(low_group["min"])
-    max_values = list(low_group["max"])
-
-    low_texture = texture_loader("xyz_0", low_group["file"])
-    high_texture = texture_loader("xyz_1", high_group["file"])
-    if low_texture.shape[0] != height or low_texture.shape[1] != width:
-        raise ValueError("xyz_0 texture has unexpected dimensions")
-    if high_texture.shape[0] != height or high_texture.shape[1] != width:
-        raise ValueError("xyz_1 texture has unexpected dimensions")
-
-    low_data = _as_channels(low_texture)
-    high_data = _as_channels(high_texture)
-    if low_data.shape != high_data.shape:
-        raise ValueError("xyz_0 and xyz_1 texture shapes do not match")
-    if low_data.shape[2] != len(properties):
-        raise ValueError("xyz split textures have unexpected channel count")
-
-    codes = (high_data.astype(np.uint16) << 8) | low_data.astype(np.uint16)
-    decoded = _denormalize_codes(codes, min_values, max_values)
-    flat = decoded.reshape(-1, decoded.shape[2])[:entry_count]
-
-    values: dict[str, np.ndarray] = {}
-    for channel_index, prop_name in enumerate(properties):
-        values[prop_name] = flat[:, channel_index]
-    return values
-
-
 def _denormalize_texture(
     texture: np.ndarray,
     min_values: list[float],
@@ -191,39 +130,6 @@ def _denormalize_texture(
         return output[:, :, 0]
     return output
 
-
-def _denormalize_codes(
-    codes: np.ndarray,
-    min_values: list[float],
-    max_values: list[float],
-) -> np.ndarray:
-    data = codes.astype(np.float32)
-    if data.ndim == 2:
-        data = data[:, :, None]
-    channels = data.shape[2]
-    if channels != len(min_values) or channels != len(max_values):
-        raise ValueError("Normalization bounds do not match channel count")
-
-    output = np.zeros_like(data, dtype=np.float32)
-    for channel in range(channels):
-        min_value = float(min_values[channel])
-        max_value = float(max_values[channel])
-        if max_value <= min_value:
-            output[:, :, channel] = min_value
-            continue
-        scaled = data[:, :, channel] / 65535.0
-        output[:, :, channel] = scaled * (max_value - min_value) + min_value
-
-    if output.shape[2] == 1:
-        return output[:, :, 0]
-    return output
-
-
-def _as_channels(texture: np.ndarray) -> np.ndarray:
-    data = texture.astype(np.float32)
-    if data.ndim == 2:
-        return data[:, :, None]
-    return data
 
 
 def _flatten_texture(texture: np.ndarray) -> np.ndarray:

@@ -58,7 +58,6 @@ def _encode_one(
     for group in encoded.groups:
         file_name = f"{name_prefix}{group.name}.png"
         output_path = out_dir / file_name
-        normalize = group.name not in ("xyz_0", "xyz_1")
         save_texture(
             output_path,
             group.texture,
@@ -66,7 +65,7 @@ def _encode_one(
             group.max_values,
             png_compression=png_compression,
             bit_depth=group.bit_depth,
-            normalize=normalize,
+            normalize=True,
         )
         file_map[group.name] = file_name
         print(f"Texture saved to: {output_path}")
