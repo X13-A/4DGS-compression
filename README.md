@@ -11,7 +11,7 @@ Research prototype that compresses 4D Gaussian Splats by mapping per-frame PLY a
 
 | Dataset | Original size | Spatially compressed size | Spatiotemporally compressed size | Final compression rate |
 | --- | ---: | ---: | ---: | ---: |
-| Bus | 3.69 GB | 751 MB | 363 MB | 10.16x |
+| Bus | 3.69 GB | 751 MB | 262 MB | 14.08x |
 
 ## Visual comparison
 
